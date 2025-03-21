@@ -1,0 +1,19 @@
+{
+  "name": "mcp-client",
+  "version": "1.0.0",
+  "description": "Minimal MCP client for testing with Claude",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "build": "tsc",
+    "dev": "tsc -w"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.9",
+    "typescript": "^5.3.3"
+  }
+}

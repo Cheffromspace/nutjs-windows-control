@@ -1,0 +1,20 @@
+[
+  {
+    "tool": "get_screen_size",
+    "args": {}
+  },
+  {
+    "tool": "get_cursor_position",
+    "args": {}
+  },
+  {
+    "tool": "get_screenshot",
+    "args": {
+      "grayscale": true,
+      "quality": 90,
+      "resize": {
+        "width": 1024
+      }
+    }
+  }
+]

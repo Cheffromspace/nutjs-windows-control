@@ -1,0 +1,42 @@
+[
+  {
+    "tool": "get_screen_size",
+    "args": {}
+  },
+  {
+    "tool": "get_cursor_position",
+    "args": {}
+  },
+  {
+    "tool": "get_screenshot",
+    "args": {
+      "grayscale": true,
+      "quality": 80,
+      "resize": {
+        "width": 1024
+      }
+    }
+  },
+  {
+    "tool": "move_mouse",
+    "args": {
+      "x": 100,
+      "y": 100
+    },
+    "waitMs": 500
+  },
+  {
+    "tool": "click_mouse",
+    "args": {
+      "button": "left"
+    },
+    "waitMs": 500
+  },
+  {
+    "tool": "type_text",
+    "args": {
+      "text": "Hello from Claude!"
+    },
+    "waitMs": 500
+  }
+]

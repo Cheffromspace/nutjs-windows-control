@@ -1,10 +1,14 @@
 # MCPControl
 
+<<<<<<< Updated upstream
 A cross-platform control server for the Model Context Protocol (MCP), providing programmatic control over system operations including mouse, keyboard, window management, and screen capture functionality. Built on [nut.js](https://nutjs.dev/).
+=======
+A Windows OS control server for the Model Context Protocol (MCP), providing programmatic control over system operations including mouse, keyboard, window management, and screen capture functionality.
+>>>>>>> Stashed changes
 
 I developed this project as an experiment a few months ago, wanting to see if Claude could play some video games. After seeing it work, I was impressed but set it aside. Recently, it's gained attention from the community, prompting me to resume development. While currently in pre-release state, I'm actively working toward a stable version. If you encounter any issues, please submit them through the issue tracker.
 
-> **Note**: This project aims to support Windows, Linux, and macOS. While most testing has been performed on Windows, cross-platform compatibility contributions are welcome.
+> **Note**: This release allows us to create an installable npm package and allows users to configure their clients to use `npx -y mcp-control` to start the server, however in order to do that, we replaced the core library with a Windows only library. We do aim for cross-platform support, and have built this in a way that allows us to plug in multiple libraries, but we'd like to focus on getting Windows stable prior to that. 
 
 ## ⚠️ IMPORTANT DISCLAIMER
 
@@ -134,9 +138,14 @@ After configuring your MCP server, restart Claude to see the MCPControl service 
 ## Dependencies
 
 - [@modelcontextprotocol/sdk](https://www.npmjs.com/package/@modelcontextprotocol/sdk) - MCP SDK for protocol implementation
+<<<<<<< Updated upstream
 - [@nut-tree/libnut](https://github.com/nut-tree/libnut) - Core native UI automation library
 - [clipboardy](https://www.npmjs.com/package/clipboardy) - Cross-platform clipboard handling
 - [express](https://expressjs.com/) - Web server framework
+=======
+- [keysender](https://www.npmjs.com/package/keysender) - Windows UI automation library
+- [clipboardy](https://www.npmjs.com/package/clipboardy) - Clipboard handling
+>>>>>>> Stashed changes
 - [jimp](https://www.npmjs.com/package/jimp) & [sharp](https://www.npmjs.com/package/sharp) - Image processing
 
 ## Testing
@@ -151,7 +160,6 @@ The project currently includes unit tests for core functionality. The following 
 - Window minimize/restore operations are currently unsupported in libnut-core
 - Advanced screen information (multiple monitors, DPI settings) is limited to main display
 - Some operations may require elevated permissions depending on the target application
-- Cross-platform support (Linux/macOS) is untested
 
 ## Contributing
 

@@ -1,21 +1,20 @@
 interface ImageContent {
   type: "image";
-  data: Buffer | string;  // Buffer for binary data, string for base64
+  data: string;  // base64 encoded image data
   mimeType: string;
-  encoding?: "binary" | "base64";  // Specify the encoding type
 }
 
 export interface ScreenshotResponse {
-  screenshot: Buffer | string;  // Buffer for binary data, string for base64
+  screenshot: string;  // base64 encoded image data
   timestamp: string;
-  encoding: "binary" | "base64";
 }
 
 export interface WindowsControlResponse {
   success: boolean;
   message: string;
-  data?: unknown;
-  screenshot?: Buffer | string;  // Buffer for binary data, string for base64
+  data?: Record<string, unknown>;
+  screenshot?: string;  // base64 encoded image data for screenshot responses
+  encoding?: string;    // encoding type for screenshot data (e.g., 'base64')
   content?: ImageContent[];  // MCP image content for screenshots
-  encoding?: "binary" | "base64";  // Specify the encoding type
+  timestamp?: string;  // ISO timestamp for screenshot responses
 }

@@ -16,7 +16,7 @@ export class KeysenderClipboardAutomation implements ClipboardAutomation {
       return {
         success: true,
         message: 'Clipboard content retrieved',
-        data: content
+        data: { content }
       };
     } catch (error) {
       return {
@@ -48,7 +48,7 @@ export class KeysenderClipboardAutomation implements ClipboardAutomation {
       return {
         success: true,
         message: `Clipboard ${hasText ? 'has' : 'does not have'} text`,
-        data: hasText
+        data: { hasText }
       };
     } catch (error) {
       return {

@@ -54,6 +54,7 @@ describe('Screenshot Functions', () => {
       });
     });
 
+
     it('should pass options to provider when specified', async () => {
       // Setup mock provider
       const mockProvider = {

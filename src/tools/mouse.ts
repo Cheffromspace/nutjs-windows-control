@@ -2,8 +2,7 @@ import { MousePosition } from '../types/common.js';
 import { WindowsControlResponse } from '../types/responses.js';
 import { createAutomationProvider } from '../providers/factory.js';
 
-// Get the automation provider
-const provider = createAutomationProvider();
+import { AutomationProvider } from '../interfaces/provider.js'; // Import the interface
 
 // Constants for validation
 const MAX_ALLOWED_COORDINATE = 10000; // Reasonable maximum screen dimension
@@ -17,7 +16,7 @@ type MouseButton = 'left' | 'right' | 'middle';
  * @returns Validated position
  * @throws Error if position is invalid or out of bounds
  */
-function validateMousePosition(position: MousePosition): MousePosition {
+function validateMousePosition(position: MousePosition, provider: AutomationProvider): MousePosition { // Pass provider as argument
   // Basic type validation
   if (!position || typeof position !== 'object') {
     throw new Error('Invalid mouse position: position must be an object');
@@ -41,18 +40,25 @@ function validateMousePosition(position: MousePosition): MousePosition {
     }
     
     // Check against actual screen bounds
-    try {
-      const screenSizeResponse = provider.screen.getScreenSize();
-      if (screenSizeResponse.success && screenSizeResponse.data) {
-        const screenSize = screenSizeResponse.data as { width: number; height: number };
+    // Ensure provider and provider.screen exist before calling getScreenSize
+    if (provider && provider.screen && typeof provider.screen.getScreenSize === 'function') {
+      try {
+        const screenSizeResponse = provider.screen.getScreenSize();
+        if (screenSizeResponse.success && screenSizeResponse.data) {
+          const screenSize = screenSizeResponse.data as { width: number; height: number };
         if (position.x < 0 || position.x >= screenSize.width || 
-            position.y < 0 || position.y >= screenSize.height) {
-          throw new Error(`Position (${position.x},${position.y}) is outside screen bounds (0,0)-(${screenSize.width-1},${screenSize.height-1})`);
+              position.y < 0 || position.y >= screenSize.height) {
+            throw new Error(`Position (${position.x},${position.y}) is outside screen bounds (0,0)-(${screenSize.width-1},${screenSize.height-1})`);
+          }
+        } else {
+           console.warn('Screen size check failed or returned no data:', screenSizeResponse.message);
         }
+      } catch (screenError) {
+        console.warn('Error calling getScreenSize for bounds check:', screenError);
+        // Continue without screen bounds check
       }
-    } catch (screenError) {
-      console.warn('Error checking screen bounds:', screenError);
-      // Continue without screen bounds check
+    } else {
+       console.warn('Screen provider or getScreenSize method not available for bounds check.');
     }
   } catch (e) {
     // In test environment, just let it through
@@ -67,10 +73,13 @@ function validateMousePosition(position: MousePosition): MousePosition {
 }
 
 export function moveMouse(position: MousePosition): WindowsControlResponse {
+  const provider = createAutomationProvider(); // Get provider instance here
   try {
     // Validate the position
-    validateMousePosition(position);
+    validateMousePosition(position, provider); // Pass provider
     
+    // Ensure provider.mouse exists
+    if (!provider.mouse) throw new Error("Mouse provider not available");
     return provider.mouse.moveMouse(position);
   } catch (error) {
     return {
@@ -99,10 +108,13 @@ function validateMouseButton(button: unknown): MouseButton {
 }
 
 export function clickMouse(button: MouseButton = 'left'): WindowsControlResponse {
+  const provider = createAutomationProvider(); // Get provider instance here
   try {
     // Validate button
     const validatedButton = validateMouseButton(button);
     
+    // Ensure provider.mouse exists
+    if (!provider.mouse) throw new Error("Mouse provider not available");
     return provider.mouse.clickMouse(validatedButton);
   } catch (error) {
     return {
@@ -113,12 +125,15 @@ export function clickMouse(button: MouseButton = 'left'): WindowsControlResponse
 }
 
 export function doubleClick(position?: MousePosition): WindowsControlResponse {
+  const provider = createAutomationProvider(); // Get provider instance here
   try {
     // Validate position if provided
     if (position) {
-      validateMousePosition(position);
+      validateMousePosition(position, provider); // Pass provider
     }
     
+    // Ensure provider.mouse exists
+    if (!provider.mouse) throw new Error("Mouse provider not available");
     return provider.mouse.doubleClick(position);
   } catch (error) {
     return {
@@ -129,7 +144,10 @@ export function doubleClick(position?: MousePosition): WindowsControlResponse {
 }
 
 export function getCursorPosition(): WindowsControlResponse {
+  const provider = createAutomationProvider(); // Get provider instance here
   try {
+    // Ensure provider.mouse exists
+    if (!provider.mouse) throw new Error("Mouse provider not available");
     return provider.mouse.getCursorPosition();
   } catch (error) {
     return {
@@ -140,6 +158,7 @@ export function getCursorPosition(): WindowsControlResponse {
 }
 
 export function scrollMouse(amount: number): WindowsControlResponse {
+  const provider = createAutomationProvider(); // Get provider instance here
   try {
     // Validate amount
     if (typeof amount !== 'number' || isNaN(amount)) {
@@ -152,6 +171,8 @@ export function scrollMouse(amount: number): WindowsControlResponse {
       throw new Error(`Scroll amount too large: ${amount} (max ${MAX_SCROLL_AMOUNT})`);
     }
     
+    // Ensure provider.mouse exists
+    if (!provider.mouse) throw new Error("Mouse provider not available");
     return provider.mouse.scrollMouse(amount);
   } catch (error) {
     return {
@@ -162,14 +183,17 @@ export function scrollMouse(amount: number): WindowsControlResponse {
 }
 
 export function dragMouse(from: MousePosition, to: MousePosition, button: MouseButton = 'left'): WindowsControlResponse {
+  const provider = createAutomationProvider(); // Get provider instance here
   try {
     // Validate positions
-    validateMousePosition(from);
-    validateMousePosition(to);
+    validateMousePosition(from, provider); // Pass provider
+    validateMousePosition(to, provider);   // Pass provider
     
     // Validate button
     const validatedButton = validateMouseButton(button);
     
+    // Ensure provider.mouse exists
+    if (!provider.mouse) throw new Error("Mouse provider not available");
     return provider.mouse.dragMouse(from, to, validatedButton);
   } catch (error) {
     return {
@@ -188,13 +212,16 @@ export function clickAt(x: number, y: number, button: MouseButton = 'left'): Win
     };
   }
   
+  const provider = createAutomationProvider(); // Get provider instance here
   try {
     // Validate position against screen bounds
-    validateMousePosition({ x, y });
+    validateMousePosition({ x, y }, provider); // Pass provider
     
     // Validate button
     const validatedButton = validateMouseButton(button);
     
+    // Ensure provider.mouse exists
+    if (!provider.mouse) throw new Error("Mouse provider not available");
     return provider.mouse.clickAt(x, y, validatedButton);
   } catch (error) {
     return {

@@ -1,5 +1,7 @@
+import koffi from 'koffi';
 import pkg from 'keysender';
-const { Hardware, getScreenSize: keysenderGetScreenSize, getAllWindows, getWindowChildren } = pkg;
+const { Hardware, getAllWindows, getWindowChildren } = pkg; // Removed keysenderGetScreenSize
+// Removed incorrect win32-def/struct import
 import { ScreenshotOptions } from '../../types/common.js';
 import { WindowsControlResponse } from '../../types/responses.js';
 import { ScreenAutomation } from '../../interfaces/automation.js';
@@ -12,21 +14,51 @@ import { ScreenAutomation } from '../../interfaces/automation.js';
  */
 export class KeysenderScreenAutomation implements ScreenAutomation {
   private hardware = new Hardware();
+  private user32: koffi.IKoffiLib;
+  private GetSystemMetrics: (nIndex: number) => number;
+
+  // System metrics constants
+  private SM_CXSCREEN = 0;         // Primary monitor width
+  private SM_CYSCREEN = 1;         // Primary monitor height
+  private SM_CMONITORS = 80;       // Number of monitors
+  private SM_XVIRTUALSCREEN = 76;  // Virtual screen left coordinate
+  private SM_YVIRTUALSCREEN = 77;  // Virtual screen top coordinate
+  private SM_CXVIRTUALSCREEN = 78; // Virtual screen width
+  private SM_CYVIRTUALSCREEN = 79; // Virtual screen height
+
+  constructor() {
+    try {
+      this.user32 = koffi.load('user32.dll');
+      this.GetSystemMetrics = this.user32.func('int GetSystemMetrics(int nIndex)');
+    } catch (error) {
+      console.error("Failed to load user32.dll or GetSystemMetrics:", error);
+      // Provide dummy implementations if loading fails to prevent crashes
+      this.user32 = {} as koffi.IKoffiLib; // Avoid runtime errors
+      this.GetSystemMetrics = (_nIndex: number) => 0; 
+    }
+  }
 
   getScreenSize(): WindowsControlResponse {
     try {
-      // Use keysender's getScreenSize function to get actual screen dimensions
-      const screenInfo = keysenderGetScreenSize();
-      
+      const screenWidth = this.GetSystemMetrics(this.SM_CXSCREEN);
+      const screenHeight = this.GetSystemMetrics(this.SM_CYSCREEN);
+
+      if (screenWidth === 0 || screenHeight === 0) {
+        throw new Error('GetSystemMetrics returned zero for screen dimensions.');
+      }
+
       return {
         success: true,
-        message: `Screen size: ${screenInfo.width}x${screenInfo.height}`,
-        data: screenInfo
+        message: `Primary screen size: ${screenWidth}x${screenHeight}`,
+        data: {
+          width: screenWidth,
+          height: screenHeight
+        }
       };
     } catch (error) {
       return {
         success: false,
-        message: `Failed to get screen size: ${error instanceof Error ? error.message : String(error)}`
+        message: `Failed to get screen size using koffi: ${error instanceof Error ? error.message : String(error)}`
       };
     }
   }
@@ -566,6 +598,132 @@ export class KeysenderScreenAutomation implements ScreenAutomation {
    *                  - resize: Resize options (width, height, fit)
    * @returns Promise<WindowsControlResponse> with base64-encoded image data
    */
+  /**
+   * Gets information about all displays/monitors connected to the system using koffi.
+   * @returns WindowsControlResponse with monitor information
+   */
+  getAllDisplays(): WindowsControlResponse {
+    try {
+      // Get basic metrics using koffi
+      const screenWidth = this.GetSystemMetrics(this.SM_CXSCREEN);
+      const screenHeight = this.GetSystemMetrics(this.SM_CYSCREEN);
+      const monitorCount = this.GetSystemMetrics(this.SM_CMONITORS);
+      const virtualX = this.GetSystemMetrics(this.SM_XVIRTUALSCREEN);
+      const virtualY = this.GetSystemMetrics(this.SM_YVIRTUALSCREEN);
+      const virtualWidth = this.GetSystemMetrics(this.SM_CXVIRTUALSCREEN);
+      const virtualHeight = this.GetSystemMetrics(this.SM_CYVIRTUALSCREEN);
+
+      if (screenWidth === 0 || screenHeight === 0 || monitorCount === 0 || virtualWidth === 0 || virtualHeight === 0) {
+        // Check if any essential metric is zero, which might indicate an issue.
+        console.warn("GetSystemMetrics returned zero for one or more essential display metrics. Results might be inaccurate.");
+        // Allow proceeding but log a warning. A zero monitor count is a definite issue.
+        if (monitorCount === 0) throw new Error('GetSystemMetrics reported 0 monitors.');
+      }
+
+      // Define MonitorInfo type matching the PoC structure and existing types
+      type MonitorInfo = {
+        index: number;
+        isPrimary: boolean;
+        bounds: { x: number; y: number; width: number; height: number };
+        workArea: { x: number; y: number; width: number; height: number };
+        deviceName: string;
+      };
+
+      const monitors: MonitorInfo[] = [];
+      const estimatedTaskbarHeight = 40; // Keep the estimation from PoC
+
+      // Primary monitor is always available
+      monitors.push({
+        index: 0,
+        isPrimary: true,
+        bounds: {
+          x: 0, // Primary is assumed at 0,0
+          y: 0,
+          width: screenWidth,
+          height: screenHeight
+        },
+        workArea: { // Estimate work area
+          x: 0,
+          y: 0,
+          width: screenWidth,
+          height: screenHeight - estimatedTaskbarHeight
+        },
+        deviceName: "DISPLAY1" // Simple naming convention
+      });
+
+      // Add secondary monitors based on virtual screen size (simplified logic from PoC)
+      // This is a basic estimation and might not be accurate for all multi-monitor setups.
+      // A more robust solution would involve EnumDisplayMonitors and GetMonitorInfo like the previous implementation.
+      if (monitorCount > 1) {
+        // This simple logic assumes a side-by-side setup where the second monitor
+        // occupies the remaining virtual screen width to the right of the primary.
+        // It won't correctly handle monitors above/below or complex layouts.
+        const secondaryWidth = virtualWidth - screenWidth;
+        const secondaryHeight = virtualHeight; // Assume same height as virtual screen
+
+        if (secondaryWidth > 0) {
+           monitors.push({
+            index: 1,
+            isPrimary: false,
+            bounds: {
+              x: screenWidth, // Assumes it starts right after the primary
+              y: 0,           // Assumes it's aligned at the top
+              width: secondaryWidth,
+              height: secondaryHeight
+            },
+            workArea: { // Estimate work area
+              x: screenWidth,
+              y: 0,
+              width: secondaryWidth,
+              height: secondaryHeight - estimatedTaskbarHeight
+            },
+            deviceName: "DISPLAY2"
+          });
+        } else {
+            console.warn("Virtual screen width not larger than primary screen width, cannot estimate secondary monitor position accurately with this method.");
+            // Potentially add logic here for monitors positioned differently if virtualX/virtualY suggest it
+        }
+        // Add placeholders for other monitors if count > 2, but without accurate geometry
+        for (let i = 2; i < monitorCount; i++) {
+             monitors.push({
+                index: i,
+                isPrimary: false,
+                bounds: { x: 0, y: 0, width: 0, height: 0 }, // Unknown geometry
+                workArea: { x: 0, y: 0, width: 0, height: 0 }, // Unknown geometry
+                deviceName: `DISPLAY${i + 1}`
+            });
+        }
+      }
+
+      return {
+        success: true,
+        message: `Found ${monitorCount} display(s) using koffi. Primary: ${screenWidth}x${screenHeight}. Virtual: ${virtualWidth}x${virtualHeight} at (${virtualX},${virtualY}).`,
+        data: {
+          monitorCount,
+          primaryIndex: 0, // Assuming the first one added is primary
+          primaryDisplay: { // Add primary display details for convenience
+            width: screenWidth,
+            height: screenHeight,
+            bounds: monitors[0].bounds,
+            workArea: monitors[0].workArea
+          },
+          virtualScreen: {
+            x: virtualX,
+            y: virtualY,
+            width: virtualWidth,
+            height: virtualHeight
+          },
+          monitors // The array of all detected/estimated monitors
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to get display information using koffi: ${error instanceof Error ? error.message : String(error)}`
+      };
+    }
+  }
+
   async getScreenshot(options?: ScreenshotOptions): Promise<WindowsControlResponse> {
     try {
       // Import sharp dynamically
@@ -673,6 +831,11 @@ export class KeysenderScreenAutomation implements ScreenAutomation {
         // Log the size of the image for debugging
         console.log(`Screenshot captured: ${outputBuffer.length} bytes (${Math.round(outputBuffer.length/1024)}KB)`);
 
+        // NOTE: This implementation currently always returns Base64 encoded data
+        // in the 'screenshot' field and 'content' array due to potential
+        // issues with binary data transfer in some environments.
+        // An environment variable like MCP_SCREENSHOT_RETURN_TYPE could be
+        // checked here in the future to support other formats if needed.
         return {
           success: true,
           message: "Screenshot captured successfully",

@@ -57,12 +57,12 @@ export async function getScreenshotToFile(options?: ScreenshotOptions): Promise<
       fs.writeFileSync(filePath, Buffer.from(base64Image, 'base64'));
       
       // Extract dimensions safely
-      const width = typeof result.data === 'object' && result.data && 'width' in result.data 
-        ? Number(result.data.width) 
+      const width = result.data && 'width' in result.data && typeof result.data.width !== 'undefined'
+        ? Number(result.data.width)
         : undefined;
       
-      const height = typeof result.data === 'object' && result.data && 'height' in result.data 
-        ? Number(result.data.height) 
+      const height = result.data && 'height' in result.data && typeof result.data.height !== 'undefined'
+        ? Number(result.data.height)
         : undefined;
       
       // Return a response with the file path instead of the image data

@@ -615,6 +615,9 @@ export function setupTools(server: Server, provider: AutomationProvider): void {
 
       // Handle special case for screenshot which returns content with image data
       const typedResponse = response as WindowsControlResponse;
+      
+      
+      // Check for standard MCP format (content property with image)
       if ('content' in typedResponse && 
           typedResponse.content && 
           Array.isArray(typedResponse.content) && 

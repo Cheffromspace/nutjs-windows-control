@@ -14,10 +14,10 @@ export async function getScreenshot(options?: ScreenshotOptions): Promise<Window
     const provider = createAutomationProvider();
     
     // Delegate to the provider's screenshot implementation
-    const result = await provider.screen.getScreenshot(options);
-    
-    // Return the result directly from the provider
-    return result;
+    const response = await provider.screen.getScreenshot(options);
+
+  // Return the standard MCP response from the provider
+  return response;
   } catch (error) {
     return {
       success: false,

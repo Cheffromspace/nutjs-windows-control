@@ -1,10 +1,48 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, Mock } from 'vitest'; // Added Mock type
 import { KeysenderScreenAutomation } from './screen.js';
+import koffi from 'koffi'; // Import koffi to mock it
 
-// Properly mock keysender without any hoisting issues
+// --- Mock koffi ---
+// Define a mock function for GetSystemMetrics
+const mockGetSystemMetrics: Mock = vi.fn();
+
+vi.mock('koffi', () => {
+  // Mock the 'func' method
+  const mockFunc = vi.fn((name: string) => {
+    if (name === 'int GetSystemMetrics(int nIndex)') {
+      return mockGetSystemMetrics;
+    }
+    // Return a dummy function for any other func calls
+    return vi.fn();
+  });
+
+  // Mock the 'load' method
+  const mockLoad = vi.fn((libName: string) => {
+    if (libName === 'user32.dll') {
+      // Return an object that simulates the loaded library with the mocked 'func'
+      return {
+        func: mockFunc,
+      };
+    }
+    // Return an empty object for other libraries
+    return {};
+  });
+
+  return {
+    // Mock the default export if koffi is imported as `import koffi from 'koffi'`
+    default: {
+      load: mockLoad,
+    },
+    // Also mock named exports if needed (though 'load' seems to be the main one used)
+    load: mockLoad,
+  };
+});
+
+
+// --- Mock keysender ---
 vi.mock('keysender', async () => {
   // This empty import() is important to make Vitest properly track the module
-  await vi.importActual('vitest');
+  await vi.importActual('vitest'); // Keep this for keysender mock
   
   // Define mocks inline within this function to avoid hoisting problems
   const mockCapture = vi.fn().mockImplementation((part, _format) => {
@@ -70,7 +108,7 @@ describe('KeysenderScreenAutomation', () => {
   let mockSet: any;
   let mockSetForeground: any;
   let mockSetView: any;
-  let mockGetScreenSize: any;
+  // let mockGetScreenSize: any; // Removed unused variable
   let mockGetAllWindows: any;
 
   beforeEach(async () => {
@@ -91,36 +129,76 @@ describe('KeysenderScreenAutomation', () => {
     mockSetView = hardware.workwindow.setView;
     
     // Get references to other mocks
-    mockGetScreenSize = keysender.getScreenSize;
+    // mockGetScreenSize = keysender.getScreenSize; // REMOVED - No longer used by getScreenSize
     mockGetAllWindows = keysender.getAllWindows;
-    
+
+    // Reset the koffi mock before each test
+    mockGetSystemMetrics.mockClear();
+    (koffi.load as Mock).mockClear();
+    // Assuming mockFunc was captured if needed, clear it too.
+    // If mockFunc is defined within the vi.mock scope, it resets automatically.
+
     // Create a new instance for each test
     screenAutomation = new KeysenderScreenAutomation();
   });
 
   describe('getScreenSize', () => {
-    it('should return screen dimensions from keysender', () => {
+    // Constants for system metrics indices used in screen.ts
+    const SM_CXSCREEN = 0;
+    const SM_CYSCREEN = 1;
+
+    it('should return screen dimensions using koffi GetSystemMetrics', () => {
+      // Configure the mock GetSystemMetrics
+      mockGetSystemMetrics.mockImplementation((nIndex: number) => {
+        if (nIndex === SM_CXSCREEN) return 1920;
+        if (nIndex === SM_CYSCREEN) return 1080;
+        return 0; // Default return for other indices
+      });
+
       const result = screenAutomation.getScreenSize();
 
-      expect(mockGetScreenSize).toHaveBeenCalled();
+      // Check if GetSystemMetrics was called correctly
+      expect(mockGetSystemMetrics).toHaveBeenCalledWith(SM_CXSCREEN);
+      expect(mockGetSystemMetrics).toHaveBeenCalledWith(SM_CYSCREEN);
       expect(result.success).toBe(true);
+      expect(result.message).toBe('Primary screen size: 1920x1080');
       expect(result.data).toEqual({
         width: 1920,
         height: 1080
       });
     });
 
-    it('should handle errors gracefully', () => {
-      // Mock getScreenSize to throw an error
-      mockGetScreenSize.mockImplementationOnce(() => {
-        throw new Error('Test error');
+    it('should handle errors when GetSystemMetrics returns zero', () => {
+       // Configure the mock GetSystemMetrics to return 0 for width
+      mockGetSystemMetrics.mockImplementation((nIndex: number) => {
+        if (nIndex === SM_CXSCREEN) return 0; // Simulate error condition
+        if (nIndex === SM_CYSCREEN) return 1080;
+        return 0;
       });
 
       const result = screenAutomation.getScreenSize();
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain('Test error');
+      expect(result.message).toContain('GetSystemMetrics returned zero for screen dimensions');
     });
+
+     it('should handle errors when GetSystemMetrics throws', () => {
+      // Configure the mock GetSystemMetrics to throw
+      const testError = new Error('Koffi API call failed');
+      mockGetSystemMetrics.mockImplementation(() => {
+        throw testError;
+      });
+
+      const result = screenAutomation.getScreenSize();
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Failed to get screen size using koffi: Koffi API call failed');
+    });
+
+    // Note: Testing the constructor failure (koffi.load failing) is more complex
+    // as it happens during class instantiation. The current code handles it by
+    // logging and using dummy functions. A separate test suite might be needed
+    // to specifically test the constructor's error handling if required.
   });
 
   describe('getScreenshot', () => {

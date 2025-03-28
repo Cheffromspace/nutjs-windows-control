@@ -25,6 +25,7 @@ export interface ScreenAutomation {
   resizeWindow(title: string, width: number, height: number): WindowsControlResponse;
   repositionWindow(title: string, x: number, y: number): WindowsControlResponse;
   getScreenshot(options?: ScreenshotOptions): Promise<WindowsControlResponse>;
+  getAllDisplays(): WindowsControlResponse;
 }
 
 export interface ClipboardAutomation {

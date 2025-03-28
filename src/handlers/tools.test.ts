@@ -129,6 +129,7 @@ describe('Tools Handler', () => {
   });
 
   describe('Tool Execution', () => {
+
     it('should execute move_mouse tool with valid arguments', async () => {
       // Mock is already setup in the mock declaration with default success response
       const mockProvider = vi.mocked(createAutomationProvider)();

@@ -753,8 +753,45 @@ export class KeysenderScreenAutomation implements ScreenAutomation {
           height: options.region.height
         }, "rgba");
       } else {
-        // Capture entire screen
-        captureResult = this.hardware.workwindow.capture("rgba");
+        // Get the main display dimensions
+        const screenSizeResponse = this.getScreenSize();
+        
+        // Check if we have valid screen size data and extract dimensions safely
+        let mainDisplayWidth = 0;
+        let mainDisplayHeight = 0;
+        
+        if (screenSizeResponse.success && screenSizeResponse.data) {
+          // Safely extract width and height with explicit type checking
+          const data = screenSizeResponse.data;
+          
+          if (typeof data === 'object' && data !== null) {
+            // Check for width property
+            if ('width' in data && typeof data.width === 'number' && data.width > 0) {
+              mainDisplayWidth = data.width;
+            }
+            
+            // Check for height property
+            if ('height' in data && typeof data.height === 'number' && data.height > 0) {
+              mainDisplayHeight = data.height;
+            }
+          }
+        }
+        
+        // Use the dimensions if they're valid, otherwise capture the entire screen
+        if (mainDisplayWidth > 0 && mainDisplayHeight > 0) {
+          // Capture only the main display using its dimensions
+          console.log(`Capturing main display: ${mainDisplayWidth}x${mainDisplayHeight}`);
+          captureResult = this.hardware.workwindow.capture({
+            x: 0,
+            y: 0,
+            width: mainDisplayWidth,
+            height: mainDisplayHeight
+          }, "rgba");
+        } else {
+          // Fallback to capturing entire screen if we couldn't get valid main display dimensions
+          console.warn("Failed to get valid screen size, falling back to full capture");
+          captureResult = this.hardware.workwindow.capture("rgba");
+        }
       }
       
       // Type assertion to ensure TypeScript safety

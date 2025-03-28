@@ -12,6 +12,14 @@ vi.mock('../providers/factory.js', () => ({
           height: 1080
         }
       }),
+      getAllDisplays: vi.fn().mockReturnValue({
+        success: true,
+        message: "Screen size retrieved successfully",
+        data: {
+          width: 1920,
+          height: 1080
+        }
+      }),
       getActiveWindow: vi.fn().mockReturnValue({
         success: true,
         message: "Active window information retrieved successfully",

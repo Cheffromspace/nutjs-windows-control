@@ -247,7 +247,7 @@ export function setupTools(server: Server, provider: AutomationProvider): void {
       },
       {
         name: "get_screen_size",
-        description: "Get the screen dimensions",
+        description: "Get detailed information about all displays including resolution, index, and position. Returns primary and secondary display objects with their dimensions and properties.",
         inputSchema: {
           type: "object",
           properties: {}

@@ -4,7 +4,8 @@ import { createAutomationProvider } from '../providers/factory.js';
 export function getScreenSize(): WindowsControlResponse {
   try {
     const provider = createAutomationProvider();
-    return provider.screen.getScreenSize();
+    // Use getAllDisplays instead of getScreenSize to get more detailed information
+    return provider.screen.getAllDisplays();
   } catch (error) {
     return {
       success: false,

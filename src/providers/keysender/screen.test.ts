@@ -146,12 +146,22 @@ describe('KeysenderScreenAutomation', () => {
     // Constants for system metrics indices used in screen.ts
     const SM_CXSCREEN = 0;
     const SM_CYSCREEN = 1;
+    const SM_CMONITORS = 80;
+    const SM_XVIRTUALSCREEN = 76;
+    const SM_YVIRTUALSCREEN = 77;
+    const SM_CXVIRTUALSCREEN = 78;
+    const SM_CYVIRTUALSCREEN = 79;
 
-    it('should return screen dimensions using koffi GetSystemMetrics', () => {
+    it('should return screen dimensions using koffi GetSystemMetrics for single monitor', () => {
       // Configure the mock GetSystemMetrics
       mockGetSystemMetrics.mockImplementation((nIndex: number) => {
         if (nIndex === SM_CXSCREEN) return 1920;
         if (nIndex === SM_CYSCREEN) return 1080;
+        if (nIndex === SM_CMONITORS) return 1; // Single monitor
+        if (nIndex === SM_XVIRTUALSCREEN) return 0;
+        if (nIndex === SM_YVIRTUALSCREEN) return 0;
+        if (nIndex === SM_CXVIRTUALSCREEN) return 1920;
+        if (nIndex === SM_CYVIRTUALSCREEN) return 1080;
         return 0; // Default return for other indices
       });
 
@@ -160,11 +170,41 @@ describe('KeysenderScreenAutomation', () => {
       // Check if GetSystemMetrics was called correctly
       expect(mockGetSystemMetrics).toHaveBeenCalledWith(SM_CXSCREEN);
       expect(mockGetSystemMetrics).toHaveBeenCalledWith(SM_CYSCREEN);
+      expect(mockGetSystemMetrics).toHaveBeenCalledWith(SM_CMONITORS);
       expect(result.success).toBe(true);
       expect(result.message).toBe('Primary screen size: 1920x1080');
       expect(result.data).toEqual({
         width: 1920,
-        height: 1080
+        height: 1080,
+        hasSecondScreen: false,
+        monitorCount: 1
+      });
+    });
+
+    it('should detect multiple monitors when present', () => {
+      // Configure the mock GetSystemMetrics for dual monitors
+      mockGetSystemMetrics.mockImplementation((nIndex: number) => {
+        if (nIndex === SM_CXSCREEN) return 1920;
+        if (nIndex === SM_CYSCREEN) return 1080;
+        if (nIndex === SM_CMONITORS) return 2; // Dual monitors
+        if (nIndex === SM_XVIRTUALSCREEN) return 0;
+        if (nIndex === SM_YVIRTUALSCREEN) return 0;
+        if (nIndex === SM_CXVIRTUALSCREEN) return 3840; // 1920 + 1920
+        if (nIndex === SM_CYVIRTUALSCREEN) return 1080;
+        return 0; // Default return for other indices
+      });
+
+      const result = screenAutomation.getScreenSize();
+
+      // Check if GetSystemMetrics was called correctly
+      expect(mockGetSystemMetrics).toHaveBeenCalledWith(SM_CMONITORS);
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('Primary screen size: 1920x1080, Second screen detected');
+      expect(result.data).toEqual({
+        width: 1920,
+        height: 1080,
+        hasSecondScreen: true,
+        monitorCount: 2
       });
     });
 
@@ -199,6 +239,118 @@ describe('KeysenderScreenAutomation', () => {
     // as it happens during class instantiation. The current code handles it by
     // logging and using dummy functions. A separate test suite might be needed
     // to specifically test the constructor's error handling if required.
+  });
+
+  describe('getAllDisplays', () => {
+    // Constants for system metrics indices used in screen.ts
+    const SM_CXSCREEN = 0;
+    const SM_CYSCREEN = 1;
+    const SM_CMONITORS = 80;
+    const SM_XVIRTUALSCREEN = 76;
+    const SM_YVIRTUALSCREEN = 77;
+    const SM_CXVIRTUALSCREEN = 78;
+    const SM_CYVIRTUALSCREEN = 79;
+
+    it('should return detailed information for a single monitor', () => {
+      // Configure the mock GetSystemMetrics
+      mockGetSystemMetrics.mockImplementation((nIndex: number) => {
+        if (nIndex === SM_CXSCREEN) return 1920;
+        if (nIndex === SM_CYSCREEN) return 1080;
+        if (nIndex === SM_CMONITORS) return 1; // Single monitor
+        if (nIndex === SM_XVIRTUALSCREEN) return 0;
+        if (nIndex === SM_YVIRTUALSCREEN) return 0;
+        if (nIndex === SM_CXVIRTUALSCREEN) return 1920;
+        if (nIndex === SM_CYVIRTUALSCREEN) return 1080;
+        return 0; // Default return for other indices
+      });
+
+      const result = screenAutomation.getAllDisplays();
+
+      // Check if GetSystemMetrics was called correctly
+      expect(mockGetSystemMetrics).toHaveBeenCalledWith(SM_CXSCREEN);
+      expect(mockGetSystemMetrics).toHaveBeenCalledWith(SM_CYSCREEN);
+      expect(mockGetSystemMetrics).toHaveBeenCalledWith(SM_CMONITORS);
+      expect(mockGetSystemMetrics).toHaveBeenCalledWith(SM_XVIRTUALSCREEN);
+      expect(mockGetSystemMetrics).toHaveBeenCalledWith(SM_YVIRTUALSCREEN);
+      expect(mockGetSystemMetrics).toHaveBeenCalledWith(SM_CXVIRTUALSCREEN);
+      expect(mockGetSystemMetrics).toHaveBeenCalledWith(SM_CYVIRTUALSCREEN);
+      
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveProperty('monitorCount', 1);
+      expect(result.data).toHaveProperty('primaryDisplay');
+      expect(result.data).toHaveProperty('monitors');
+      
+      // Check primary display properties
+      const primaryDisplay = result.data?.primaryDisplay as Record<string, any>;
+      expect(primaryDisplay).toHaveProperty('width', 1920);
+      expect(primaryDisplay).toHaveProperty('height', 1080);
+      expect(primaryDisplay).toHaveProperty('resolution', '1920x1080');
+      expect(primaryDisplay).toHaveProperty('index', 0);
+      expect(primaryDisplay).toHaveProperty('isPrimary', true);
+      
+      // Check monitors array
+      const monitors = result.data?.monitors as Array<Record<string, any>>;
+      expect(monitors).toHaveLength(1);
+      expect(monitors[0]).toHaveProperty('index', 0);
+      expect(monitors[0]).toHaveProperty('isPrimary', true);
+      expect(monitors[0]).toHaveProperty('resolution', '1920x1080');
+    });
+
+    it('should return detailed information for multiple monitors', () => {
+      // Configure the mock GetSystemMetrics for dual monitors
+      mockGetSystemMetrics.mockImplementation((nIndex: number) => {
+        if (nIndex === SM_CXSCREEN) return 1920;
+        if (nIndex === SM_CYSCREEN) return 1080;
+        if (nIndex === SM_CMONITORS) return 2; // Dual monitors
+        if (nIndex === SM_XVIRTUALSCREEN) return 0;
+        if (nIndex === SM_YVIRTUALSCREEN) return 0;
+        if (nIndex === SM_CXVIRTUALSCREEN) return 3840; // 1920 + 1920
+        if (nIndex === SM_CYVIRTUALSCREEN) return 1080;
+        return 0; // Default return for other indices
+      });
+
+      const result = screenAutomation.getAllDisplays();
+
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveProperty('monitorCount', 2);
+      expect(result.data).toHaveProperty('primaryDisplay');
+      expect(result.data).toHaveProperty('secondaryDisplays');
+      expect(result.data).toHaveProperty('monitors');
+      
+      // Check primary display properties
+      const primaryDisplay = result.data?.primaryDisplay as Record<string, any>;
+      expect(primaryDisplay).toHaveProperty('width', 1920);
+      expect(primaryDisplay).toHaveProperty('height', 1080);
+      expect(primaryDisplay).toHaveProperty('resolution', '1920x1080');
+      expect(primaryDisplay).toHaveProperty('index', 0);
+      
+      // Check secondary displays
+      const secondaryDisplays = result.data?.secondaryDisplays as Array<Record<string, any>>;
+      expect(secondaryDisplays).toHaveLength(1);
+      expect(secondaryDisplays[0]).toHaveProperty('index', 1);
+      expect(secondaryDisplays[0]).toHaveProperty('isPrimary', false);
+      expect(secondaryDisplays[0]).toHaveProperty('resolution', '1920x1080');
+      
+      // Check monitors array
+      const monitors = result.data?.monitors as Array<Record<string, any>>;
+      expect(monitors).toHaveLength(2);
+      expect(monitors[0]).toHaveProperty('index', 0);
+      expect(monitors[0]).toHaveProperty('isPrimary', true);
+      expect(monitors[1]).toHaveProperty('index', 1);
+      expect(monitors[1]).toHaveProperty('isPrimary', false);
+    });
+
+    it('should handle errors when GetSystemMetrics returns zero for monitor count', () => {
+      // Configure the mock GetSystemMetrics to return 0 for monitor count
+      mockGetSystemMetrics.mockImplementation((nIndex: number) => {
+        if (nIndex === SM_CMONITORS) return 0; // Simulate error condition
+        return 1920; // Return valid values for other metrics
+      });
+
+      const result = screenAutomation.getAllDisplays();
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('GetSystemMetrics reported 0 monitors');
+    });
   });
 
   describe('getScreenshot', () => {
